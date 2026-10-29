@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { apiClient } from '@/lib/api-client';
+import { authApiClient } from '@/lib/api-client';
 import { renderWithProviders } from '@/test/utils';
 import { AuthCallbackPage } from './auth-callback-page';
 import { LoginPage, RegisterPage } from './auth-pages';
@@ -38,7 +38,7 @@ describe('API authentication', () => {
     expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
   });
   it('logs in through the API and stores the returned token without storing the password', async () => {
-    const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: { token: 'jwt-token', tokenType: 'Bearer' } });
+    const post = vi.spyOn(authApiClient, 'post').mockResolvedValue({ data: { token: 'jwt-token', tokenType: 'Bearer' } });
     renderWithProviders(tree, { route: '/login' });
     await userEvent.type(screen.getByLabelText(/email/i), 'ada@example.com');
     await userEvent.type(screen.getByLabelText(/password/i), 'secret-password');
@@ -51,7 +51,7 @@ describe('API authentication', () => {
     expect(stored).not.toContain('secret-password');
   });
   it('registers using the API email/password contract', async () => {
-    const post = vi.spyOn(apiClient, 'post').mockResolvedValue({ data: { token: 'new-token', tokenType: 'Bearer' } });
+    const post = vi.spyOn(authApiClient, 'post').mockResolvedValue({ data: { token: 'new-token', tokenType: 'Bearer' } });
     renderWithProviders(tree, { route: '/register' });
     await userEvent.type(screen.getByLabelText(/work email/i), 'ada@example.com');
     await userEvent.type(screen.getByLabelText(/^password/i), 'secret6');
@@ -61,7 +61,7 @@ describe('API authentication', () => {
     expect(post).toHaveBeenCalledWith('/auth/register', { email: 'ada@example.com', password: 'secret6' });
   });
   it('enforces matching registration passwords', async () => {
-    const post = vi.spyOn(apiClient, 'post');
+    const post = vi.spyOn(authApiClient, 'post');
     renderWithProviders(tree, { route: '/register' });
     await userEvent.type(screen.getByLabelText(/work email/i), 'ada@example.com');
     await userEvent.type(screen.getByLabelText(/^password/i), 'secret6');
@@ -74,7 +74,7 @@ describe('API authentication', () => {
     renderWithProviders(tree, { route: '/login' });
     expect(screen.getByRole('link', { name: /continue with google/i })).toHaveAttribute(
       'href',
-      'http://localhost:8081/oauth2/authorization/google',
+      'https://user-service-9ilv.onrender.com/oauth2/authorization/google',
     );
   });
   it('stores the OAuth token from the callback fragment and opens the protected app', async () => {

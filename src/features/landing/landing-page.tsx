@@ -29,7 +29,7 @@ const BENEFITS = [
 
 const FAQ = [
   { q: 'Does MailDesk store my data?', a: 'Records are stored by the Mail Service your administrator connects MailDesk to. The browser keeps your authentication token until you log out or it expires.' },
-  { q: 'How does sign-in work?', a: 'MailDesk sends login and registration requests to the configured API Gateway and uses the returned token for protected API requests.' },
+  { q: 'How does sign-in work?', a: 'MailDesk sends login and registration requests to the configured User Service and uses the returned token for protected API requests.' },
   { q: 'Which spreadsheet formats can I import?', a: 'Excel files in .xlsx or .xls format.' },
   { q: 'Can I edit or delete records?', a: 'Not currently. The connected API supports creating, importing and listing records only.' },
   { q: 'Are records processed instantly?', a: 'Creating and importing are asynchronous. You get a transaction ID and can watch its status.' },

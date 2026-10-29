@@ -13,7 +13,7 @@ import { useAuth } from './auth-context';
 import { AuthLayout } from './auth-layout';
 
 const linkCls = 'font-medium text-brand-600 hover:text-brand-700';
-const googleOAuthUrl = import.meta.env.VITE_GOOGLE_OAUTH_URL ?? 'http://localhost:8081/oauth2/authorization/google';
+const googleOAuthUrl = import.meta.env.VITE_GOOGLE_OAUTH_URL ?? 'https://user-service-9ilv.onrender.com/oauth2/authorization/google';
 
 function GoogleSignInButton() {
   return (

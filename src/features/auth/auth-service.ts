@@ -1,4 +1,4 @@
-import { apiClient } from '@/lib/api-client';
+import { authApiClient } from '@/lib/api-client';
 import { clearAuthSession, createOAuthSession, getAuthSession, saveAuthSession, type AuthSession, type AuthUser } from '@/lib/auth-session';
 
 export type { AuthSession, AuthUser } from '@/lib/auth-session';
@@ -20,7 +20,7 @@ function userFromEmail(email: string): AuthUser {
 }
 
 async function authenticate(path: '/auth/login' | '/auth/register', email: string, password: string): Promise<AuthSession> {
-  const { data } = await apiClient.post<unknown>(path, { email: email.trim(), password });
+  const { data } = await authApiClient.post<unknown>(path, { email: email.trim(), password });
   if (
     typeof data !== 'object' || data === null ||
     !('token' in data) || typeof data.token !== 'string' || !data.token ||
