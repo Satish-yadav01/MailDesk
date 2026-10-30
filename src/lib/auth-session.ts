@@ -48,8 +48,14 @@ export function createOAuthSession(token: string, tokenType: string): AuthSessio
     try {
       const normalizedClaims = claims.replace(/-/g, '+').replace(/_/g, '/');
       const payload = JSON.parse(atob(normalizedClaims.padEnd(Math.ceil(normalizedClaims.length / 4) * 4, '='))) as unknown;
-      if (typeof payload === 'object' && payload !== null && 'sub' in payload && typeof payload.sub === 'string') {
-        email = payload.sub;
+      if (isRecord(payload)) {
+        if (typeof payload.email === 'string') {
+          email = payload.email;
+        } else if (typeof payload.sub === 'string' && payload.sub.includes('@')) {
+          email = payload.sub;
+        } else if (typeof payload.preferred_username === 'string' && payload.preferred_username.includes('@')) {
+          email = payload.preferred_username;
+        }
       }
     } catch {
       // The API validates the token; claims here are only used to populate the profile display.

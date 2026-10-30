@@ -16,10 +16,10 @@ export function AuthCallbackPage() {
 
     const params = new URLSearchParams(window.location.hash.slice(1));
     const token = params.get('token');
-    const tokenType = params.get('tokenType');
+    const tokenType = params.get('tokenType') || 'Bearer';
     window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`);
 
-    if (!token || !tokenType) {
+    if (!token) {
       setError('Google sign-in did not return an access token. Please try again.');
       return;
     }

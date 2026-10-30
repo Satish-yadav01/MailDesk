@@ -55,7 +55,7 @@ Not in the API, so not in the UI: get-by-id, update, delete, server-side search/
 ## Authentication and production notes
 
 - **CORS**: the browser calls both services directly. Enable CORS on both services for your web origin, or serve them behind one reverse proxy. Don't disable browser security.
-- **Google OAuth** redirects to `VITE_GOOGLE_OAUTH_URL`. The Google provider callback URI remains the user-service endpoint; separately set the user service's `FRONTEND_OAUTH_CALLBACK_URL` to `https://<frontend-domain>/auth/callback`. The callback token is returned in the URL fragment, consumed by the frontend, and removed from the address bar.
+- **Google OAuth** redirects to `VITE_GOOGLE_OAUTH_URL`. The Google provider callback URI remains the user-service endpoint; separately set the user service's `FRONTEND_OAUTH_CALLBACK_URL` to `https://<frontend-domain>/auth/callback`. The callback token is returned in the URL fragment, consumed by the frontend (using `Bearer` when `tokenType` is omitted), and removed from the address bar. Vercel deployments use `vercel.json` to route direct app URLs, including `/auth/callback`, through the SPA entry point.
 - `/api/mail/send` and `/api/mail/cold-email/trigger` can cause real-world effects. Enforce authorization and rate limits on the backend before exposing them publicly.
 - If the API later requires a secret key, call it from a backend proxy; never ship it in this bundle.
 - No request or response bodies, emails or headers are logged by the app.

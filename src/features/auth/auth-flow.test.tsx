@@ -86,4 +86,14 @@ describe('API authentication', () => {
     expect(Object.values(localStorage).join('')).toContain(token);
     expect(window.location.hash).toBe('');
   });
+  it('defaults the Google callback auth scheme and reads the email claim from the JWT', async () => {
+    const token = `header.${btoa(JSON.stringify({ email: 'ada@example.com' }))}.signature`;
+    window.history.replaceState({}, '', `/auth/callback#token=${encodeURIComponent(token)}`);
+    renderWithProviders(tree, { route: '/auth/callback' });
+
+    expect(await screen.findByText('Dashboard secret')).toBeInTheDocument();
+    const session = Object.values(localStorage).join('');
+    expect(session).toContain('Bearer');
+    expect(session).toContain('ada@example.com');
+  });
 });
