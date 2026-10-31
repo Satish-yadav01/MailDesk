@@ -1,6 +1,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { saveAuthSession } from '@/lib/auth-session';
 import { emailService } from '@/services/email-service';
 import { renderWithProviders } from '@/test/utils';
 import { ImportPage } from './import-page';
@@ -8,6 +9,12 @@ import { ImportPage } from './import-page';
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() }, Toaster: () => null }));
 beforeEach(() => {
   vi.restoreAllMocks();
+  saveAuthSession({
+    user: { name: 'Ada', email: 'ada@example.com' },
+    token: 'jwt-token',
+    tokenType: 'Bearer',
+    userId: '1',
+  });
   vi.spyOn(emailService, 'getHeaders').mockResolvedValue(['firstName', 'email']);
   vi.spyOn(emailService, 'getTransaction').mockResolvedValue({ tid: '3', status: 'PROCESSING', statusCode: null, message: null, isTerminal: false, isFailure: false, raw: {} });
 });

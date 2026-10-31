@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeEmailPage, normalizeHeaders, normalizeSubmission, normalizeTransaction, normalizeRecord } from './normalizers';
+import { normalizeEmailPage, normalizeHeaders, normalizeSubmission, normalizeTransaction, normalizeTransactionPage, normalizeRecord } from './normalizers';
 
 describe('normalizeEmailPage', () => {
   it('handles a bare array', () => {
@@ -58,10 +58,36 @@ describe('normalizeTransaction', () => {
       isTerminal: true,
       isFailure: false,
     });
-    expect(normalizeTransaction({ txnStatus: 'PENDING', statusCode: 200 }, '1').isTerminal).toBe(true);
+    expect(normalizeTransaction({ txnStatus: 'PENDING', statusCode: 200 }, '1').isTerminal).toBe(false);
   });
   it('keeps polling while the Spring transaction is pending', () => {
     expect(normalizeTransaction({ txnStatus: 'PENDING', statusCode: 202, statusMsg: 'Processing' }, '1'))
       .toMatchObject({ status: 'PENDING', statusCode: 202, message: 'Processing', isTerminal: false });
+  });
+});
+describe('normalizeTransactionPage', () => {
+  it('normalizes the transactions endpoint response and pagination metadata', () => {
+    const page = normalizeTransactionPage({
+      transactions: [{ tid: 149, userId: 1, url: '/api/emails/add', statusCode: 202, statusMsg: 'Processing', txnStatus: 'PENDING' }],
+      currentPage: 0,
+      pageSize: 5,
+      totalElements: 9,
+      totalPages: 2,
+      hasNext: true,
+      hasPrevious: false,
+    }, 0, 5);
+
+    expect(page).toMatchObject({
+      items: [{ tid: '149', userId: '1', url: '/api/emails/add', status: 'PENDING', isTerminal: false }],
+      page: 0,
+      size: 5,
+      totalElements: 9,
+      totalPages: 2,
+      hasNext: true,
+      hasPrevious: false,
+    });
+  });
+  it('rejects invalid transaction list responses', () => {
+    expect(() => normalizeTransactionPage({}, 0, 5)).toThrow(/invalid transaction list/i);
   });
 });

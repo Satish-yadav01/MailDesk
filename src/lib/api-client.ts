@@ -3,6 +3,7 @@ import { AUTH_SESSION_EXPIRED_EVENT, clearAuthSession, getAuthSession } from './
 
 const baseURL = (import.meta.env.VITE_API_BASE_URL ?? 'https://maildesk-service.onrender.com').replace(/\/+$/, '');
 const authBaseURL = (import.meta.env.VITE_AUTH_API_BASE_URL ?? 'https://user-service-9ilv.onrender.com').replace(/\/+$/, '');
+const userLookupBaseURL = (import.meta.env.VITE_USER_LOOKUP_API_BASE_URL ?? authBaseURL).replace(/\/+$/, '');
 const timeout = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 30_000;
 
 /**
@@ -10,7 +11,7 @@ const timeout = Number(import.meta.env.VITE_API_TIMEOUT_MS) || 30_000;
  * - Adds the signed-in user's token to protected API requests.
  * - Nothing is logged: request/response bodies contain personal email data.
  */
-function createApiClient(serviceBaseURL: string) {
+function createApiClient(serviceBaseURL: string, requireUserId = false) {
   const client = axios.create({
     baseURL: serviceBaseURL,
     timeout,
@@ -20,6 +21,12 @@ function createApiClient(serviceBaseURL: string) {
   client.interceptors.request.use((config) => {
     const session = getAuthSession();
     if (session) config.headers.set('Authorization', `${session.tokenType} ${session.token}`);
+    if (requireUserId) {
+      if (!session?.userId) {
+        throw new Error('Your account ID is not available. Please sign in again or retry loading your account details.');
+      }
+      config.params = { ...config.params, user_id: session.userId };
+    }
     return config;
   });
 
@@ -36,7 +43,8 @@ function createApiClient(serviceBaseURL: string) {
   return client;
 }
 
-export const apiClient = createApiClient(baseURL);
+export const apiClient = createApiClient(baseURL, true);
 export const authApiClient = createApiClient(authBaseURL);
+export const userLookupApiClient = createApiClient(userLookupBaseURL);
 export const API_BASE_URL = baseURL;
 export const AUTH_API_BASE_URL = authBaseURL;

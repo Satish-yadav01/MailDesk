@@ -26,14 +26,29 @@ export interface EmailPage {
 /** 202 response from add / import-excel. Only `tid` is confirmed by the collection. */
 export interface AsyncSubmission { tid: string; raw: unknown }
 
+export type TransactionOperation = 'single-email' | 'multiple-emails' | 'excel-import';
+
 export interface TransactionStatus {
   tid: string;
+  userId?: string | null;
+  url?: string | null;
+  operation?: string | null;
   status: string | null;
   statusCode: number | null;
   message: string | null;
   isTerminal: boolean;
   isFailure: boolean;
   raw: unknown;
+}
+
+export interface TransactionPage {
+  items: TransactionStatus[];
+  page: number;
+  size: number;
+  totalElements: number | null;
+  totalPages: number | null;
+  hasNext: boolean;
+  hasPrevious: boolean;
 }
 
 export interface ServiceHealth { ok: boolean; message: string | null }

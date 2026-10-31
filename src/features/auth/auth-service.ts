@@ -1,5 +1,6 @@
 import { authApiClient } from '@/lib/api-client';
 import { clearAuthSession, createOAuthSession, getAuthSession, saveAuthSession, type AuthSession, type AuthUser } from '@/lib/auth-session';
+import { emailService } from '@/services/email-service';
 
 export type { AuthSession, AuthUser } from '@/lib/auth-session';
 
@@ -34,8 +35,21 @@ async function authenticate(path: '/auth/login' | '/auth/register', email: strin
     token: data.token,
     tokenType: data.tokenType,
   };
+  return saveSessionWithUserId(session);
+}
+
+async function saveSessionWithUserId(session: AuthSession): Promise<AuthSession> {
   saveAuthSession(session);
-  return session;
+  try {
+    if (!session.user.email) throw new Error('The signed-in account does not have an email address.');
+    const userId = await emailService.getUserIdByEmail(session.user.email);
+    const sessionWithUserId = { ...session, userId };
+    saveAuthSession(sessionWithUserId);
+    return sessionWithUserId;
+  } catch (error) {
+    clearAuthSession();
+    throw error;
+  }
 }
 
 export const authService: AuthService = {
@@ -45,8 +59,7 @@ export const authService: AuthService = {
   getSession: getAuthSession,
 };
 
-export function completeOAuthLogin(token: string, tokenType: string): AuthUser {
+export async function completeOAuthLogin(token: string, tokenType: string): Promise<AuthUser> {
   const session = createOAuthSession(token, tokenType);
-  saveAuthSession(session);
-  return session.user;
+  return (await saveSessionWithUserId(session)).user;
 }

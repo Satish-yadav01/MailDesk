@@ -2,7 +2,7 @@ import { Route, Routes } from 'react-router-dom';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { authApiClient } from '@/lib/api-client';
+import { authApiClient, userLookupApiClient } from '@/lib/api-client';
 import { renderWithProviders } from '@/test/utils';
 import { AuthCallbackPage } from './auth-callback-page';
 import { LoginPage, RegisterPage } from './auth-pages';
@@ -39,19 +39,23 @@ describe('API authentication', () => {
   });
   it('logs in through the API and stores the returned token without storing the password', async () => {
     const post = vi.spyOn(authApiClient, 'post').mockResolvedValue({ data: { token: 'jwt-token', tokenType: 'Bearer' } });
+    const lookup = vi.spyOn(userLookupApiClient, 'post').mockResolvedValue({ data: { userId: 7 } });
     renderWithProviders(tree, { route: '/login' });
     await userEvent.type(screen.getByLabelText(/email/i), 'ada@example.com');
     await userEvent.type(screen.getByLabelText(/password/i), 'secret-password');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     expect(await screen.findByText('Dashboard secret')).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith('/auth/login', { email: 'ada@example.com', password: 'secret-password' });
+    expect(lookup).toHaveBeenCalledTimes(1);
     const stored = Object.values(localStorage).join('');
     expect(stored).toContain('ada@example.com');
     expect(stored).toContain('jwt-token');
+    expect(stored).toContain('"userId":"7"');
     expect(stored).not.toContain('secret-password');
   });
   it('registers using the API email/password contract', async () => {
     const post = vi.spyOn(authApiClient, 'post').mockResolvedValue({ data: { token: 'new-token', tokenType: 'Bearer' } });
+    const lookup = vi.spyOn(userLookupApiClient, 'post').mockResolvedValue({ data: { userId: 8 } });
     renderWithProviders(tree, { route: '/register' });
     await userEvent.type(screen.getByLabelText(/work email/i), 'ada@example.com');
     await userEvent.type(screen.getByLabelText(/^password/i), 'secret6');
@@ -59,6 +63,7 @@ describe('API authentication', () => {
     await userEvent.click(screen.getByRole('button', { name: /create account/i }));
     expect(await screen.findByText('Dashboard secret')).toBeInTheDocument();
     expect(post).toHaveBeenCalledWith('/auth/register', { email: 'ada@example.com', password: 'secret6' });
+    expect(lookup).toHaveBeenCalledTimes(1);
   });
   it('enforces matching registration passwords', async () => {
     const post = vi.spyOn(authApiClient, 'post');
@@ -78,6 +83,7 @@ describe('API authentication', () => {
     );
   });
   it('stores the OAuth token from the callback fragment and opens the protected app', async () => {
+    vi.spyOn(userLookupApiClient, 'post').mockResolvedValue({ data: { userId: 9 } });
     const token = 'eyJhbGciOiJub25lIn0.eyJzdWIiOiJhZGFAZXhhbXBsZS5jb20ifQ.signature';
     window.history.replaceState({}, '', `/auth/callback#token=${token}&tokenType=Bearer`);
     renderWithProviders(tree, { route: '/auth/callback' });
@@ -87,6 +93,7 @@ describe('API authentication', () => {
     expect(window.location.hash).toBe('');
   });
   it('defaults the Google callback auth scheme and reads the email claim from the JWT', async () => {
+    vi.spyOn(userLookupApiClient, 'post').mockResolvedValue({ data: { userId: 10 } });
     const token = `header.${btoa(JSON.stringify({ email: 'ada@example.com' }))}.signature`;
     window.history.replaceState({}, '', `/auth/callback#token=${encodeURIComponent(token)}`);
     renderWithProviders(tree, { route: '/auth/callback' });

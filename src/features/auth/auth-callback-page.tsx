@@ -24,12 +24,15 @@ export function AuthCallbackPage() {
       return;
     }
 
-    try {
-      completeOAuth(token, tokenType);
-      navigate('/app', { replace: true });
-    } catch {
-      setError('Could not save the Google sign-in session. Please try again.');
-    }
+    const finishSignIn = async () => {
+      try {
+        await completeOAuth(token, tokenType);
+        navigate('/app', { replace: true });
+      } catch {
+        setError('Could not complete Google sign-in. Please try again.');
+      }
+    };
+    void finishSignIn();
   }, [completeOAuth, navigate]);
 
   return (

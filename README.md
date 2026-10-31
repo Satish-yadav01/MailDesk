@@ -20,6 +20,7 @@ Scripts: `npm run dev`, `npm run build`, `npm run preview`, `npm run typecheck`,
 |---|---|---|
 | `VITE_API_BASE_URL` | Mail Service base URL (no trailing slash) | `https://maildesk-service.onrender.com` |
 | `VITE_AUTH_API_BASE_URL` | User Service base URL for login and registration (no trailing slash) | `https://user-service-9ilv.onrender.com` |
+| `VITE_USER_LOOKUP_API_BASE_URL` | User Service URL for email-to-userId lookup; defaults to `VITE_AUTH_API_BASE_URL` | `https://user-service-9ilv.onrender.com` |
 | `VITE_API_TIMEOUT_MS` | Default request timeout | `30000` |
 | `VITE_GOOGLE_OAUTH_URL` | Google OAuth authorization URL | `https://user-service-9ilv.onrender.com/oauth2/authorization/google` |
 All `VITE_*` values are bundled into the client and visible to users. **Never put secrets in them.**
@@ -29,32 +30,37 @@ Use `.env.development` / `.env.production` for per-environment values.
 
 | Endpoint | Where it is used |
 |---|---|
-| `GET /api/email-info/emailListHeaders` | Import page: "Expected columns" panel |
-| `POST /api/emails/add` (JSON array, async, 202 + `tid`) | Create Single (array of one) and Create Multiple |
-| `POST /api/emails/import-excel` (multipart `file`, async, 202 + `tid`) | Upload Excel File |
-| `GET /api/emails/enquiry?tid=` | Status panel after add/import (polled every 2s, up to ~2 min) and the Transaction Status page |
-| `GET /api/emails/list?page=&size=` | Email List, dashboard summary and recent records |
-| `GET /api/mail/health` | Mail Sender and dashboard status badge |
-| `POST /api/mail/resume/upload` | Mail Sender: resume upload |
-| `POST /api/mail/resume/drive-link` | Mail Sender: Drive link |
-| `POST /api/mail/send` | Mail Sender: test send (confirmation dialog) |
-| `POST /api/mail/cold-email/trigger` | Mail Sender: danger zone (type `SEND` to confirm) |
+| `GET /api/email-info/emailListHeaders?user_id=` | Import page: "Expected columns" panel |
+| `POST /api/emails/add?user_id=` (JSON array, async, 202 + `tid`) | Create Single (array of one) and Create Multiple |
+| `POST /api/emails/import-excel?user_id=` (multipart `file`, async, 202 + `tid`) | Upload Excel File |
+| `GET /api/emails/enquiry?tid=&user_id=` | Status panel after add/import (polled every 2s, up to ~2 min) and pending rows in Transaction Status |
+| `POST /api/v1/internal/users/by-email` | Resolves the user ID once during sign-in/registration/OAuth; it is saved with the browser session |
+| `GET /api/emails/transactions?user_id=&page=&size=` | Paginated Transaction Status history |
+| `GET /api/emails/list?user_id=&page=&size=` | Email List, dashboard summary and recent records |
+| `GET /api/mail/health?user_id=` | Mail Sender and dashboard status badge |
+| `POST /api/mail/resume/upload?user_id=` | Mail Sender: resume upload |
+| `POST /api/mail/resume/drive-link?user_id=` | Mail Sender: Drive link |
+| `POST /api/mail/send?user_id=` | Mail Sender: test send (confirmation dialog) |
+| `POST /api/mail/cold-email/trigger?user_id=` | Mail Sender: danger zone (type `SEND` to confirm) |
 
 Not in the API, so not in the UI: get-by-id, update, delete, server-side search/filter/sort. The list is read-only; search and sort act on the loaded page only.
 
 ## Assumptions to confirm (the collection has no saved example responses)
 
 1. **Response shapes are inferred.** `src/services/normalizers.ts` accepts a bare array or a Spring-style page (`content`, `totalElements`, ...) for the list, and any `{status, message}`-like object for `enquiry`. Unknown fields are shown as text, never as HTML. Send real sample responses to tighten these.
-2. **Transaction status vocabulary is unknown.** `COMPLETED/SUCCESS/DONE...` count as success and `FAILED/ERROR/REJECTED...` as failure; anything else keeps polling (capped). Edit `SUCCESS`/`FAILURE` in `normalizers.ts` once the real values are known.
+2. **Transaction status vocabulary:** `COMPLETED/SUCCESS/DONE...` count as success and `FAILED/ERROR/REJECTED...` as failure. Only explicit pending/processing states are refreshed in the Transaction Status list, up to five times at 24-second intervals.
 3. **Required record fields are unknown;** only `email` is required in the forms. `emailStatus` is free text (default `UNVERIFIED`).
 4. **Excel**: `.xlsx`/`.xls` accepted per the collection. Required columns and size limits are unspecified, so no template download is offered and there is no client-side size limit.
 5. **Single create** sends a one-element array to `/api/emails/add`; **bulk** sends one array in one request (no per-record results are documented, so the full server response is shown).
-6. **Authentication** uses `VITE_AUTH_API_BASE_URL`: `POST /auth/register` and `POST /auth/login` return a JWT token that is saved in browser local storage and sent as an `Authorization` header for Mail Service requests. Tokens expire after one hour; a `401` clears the saved session and returns users to sign-in because there is no refresh endpoint.
+6. **Authentication** uses `VITE_AUTH_API_BASE_URL`: `POST /auth/register` and `POST /auth/login` return a JWT token. After authentication, the frontend resolves the account's user ID once and saves it alongside the token in browser local storage. Both are reused for API requests. Tokens expire after one hour; a `401` clears the saved session and returns users to sign-in because there is no refresh endpoint.
 7. **Google OAuth**: the user service redirects successful login to `/auth/callback` with `token` and `tokenType` in the URL fragment. Configure `FRONTEND_OAUTH_CALLBACK_URL` on the user service to the deployed frontend callback URL, and set `VITE_GOOGLE_OAUTH_URL` to the deployed user-service authorization endpoint.
 
 ## Authentication and production notes
 
 - **CORS**: the browser calls both services directly. Enable CORS on both services for your web origin, or serve them behind one reverse proxy. Don't disable browser security.
+- After successful authentication (including Google OAuth), the frontend resolves and saves the user's `userId`. Every Mail Service request receives the saved ID as the `user_id` request parameter; requests are not sent when the ID is unavailable. The user lookup endpoint itself is on the User Service and is called only to resolve the ID. It must permit the frontend origin and authenticate requests without exposing an internal API key in the browser.
+- Transaction history's Operation column shows single-email submissions, multi-email submissions, and Excel imports separately. The app associates each submission's returned transaction ID with its operation and reuses the endpoint path to identify Excel imports from history.
+- Email List's Export Excel button creates a UTF-8 CSV in the browser from the filtered records on the current page. Excel and Numbers open the CSV as rows and columns; no export request is sent to the backend.
 - **Google OAuth** redirects to `VITE_GOOGLE_OAUTH_URL`. The Google provider callback URI remains the user-service endpoint; separately set the user service's `FRONTEND_OAUTH_CALLBACK_URL` to `https://<frontend-domain>/auth/callback`. The callback token is returned in the URL fragment, consumed by the frontend (using `Bearer` when `tokenType` is omitted), and removed from the address bar. Vercel deployments use `vercel.json` to route direct app URLs, including `/auth/callback`, through the SPA entry point.
 - `/api/mail/send` and `/api/mail/cold-email/trigger` can cause real-world effects. Enforce authorization and rate limits on the backend before exposing them publicly.
 - If the API later requires a secret key, call it from a backend proxy; never ship it in this bundle.

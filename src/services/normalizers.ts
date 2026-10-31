@@ -1,4 +1,4 @@
-import type { AsyncSubmission, EmailPage, EmailRecord, ServiceHealth, SimpleResult, TransactionStatus } from '@/types/api';
+import type { AsyncSubmission, EmailPage, EmailRecord, ServiceHealth, SimpleResult, TransactionPage, TransactionStatus } from '@/types/api';
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 const str = (v: unknown): string | null => (v === null || v === undefined || v === '' ? null : typeof v === 'object' ? null : String(v));
@@ -74,8 +74,13 @@ export function normalizeSubmission(data: unknown): AsyncSubmission {
 
 const SUCCESS = ['COMPLETED', 'COMPLETE', 'SUCCESS', 'SUCCEEDED', 'DONE', 'FINISHED', 'PROCESSED'];
 const FAILURE = ['FAILED', 'FAILURE', 'ERROR', 'REJECTED', 'CANCELLED', 'CANCELED', 'PARTIAL_FAILURE'];
+const PENDING = ['PENDING', 'PROCESSING', 'IN_PROGRESS', 'INPROGRESS', 'QUEUED', 'ACCEPTED'];
 
-/** Status vocabulary is unconfirmed; unknown statuses are treated as non-terminal (polling is capped by the caller). */
+export function isPendingTransactionStatus(status: string | null): boolean {
+  return status !== null && PENDING.includes(status.toUpperCase());
+}
+
+/** Keep explicit pending states nonterminal even when the response reports HTTP 200. */
 export function normalizeTransaction(data: unknown, tid: string): TransactionStatus {
   const r = isRecord(data) ? data : {};
   const status = str(r.txnStatus ?? r.status ?? r.state ?? r.transactionStatus);
@@ -83,8 +88,48 @@ export function normalizeTransaction(data: unknown, tid: string): TransactionSta
   const message = str(r.statusMsg ?? r.message ?? r.statusMessage ?? r.description);
   const s = (status ?? '').toUpperCase();
   const isFailure = FAILURE.includes(s) || (statusCode !== null && statusCode >= 400);
-  const isTerminal = isFailure || SUCCESS.includes(s) || statusCode === 200;
-  return { tid, status, statusCode, message, isTerminal, isFailure, raw: data };
+  const isTerminal = isFailure || SUCCESS.includes(s) || (!isPendingTransactionStatus(status) && statusCode === 200);
+  return {
+    tid,
+    userId: str(r.userId),
+    url: str(r.url),
+    operation: str(r.operation ?? r.operationType ?? r.action),
+    status,
+    statusCode,
+    message,
+    isTerminal,
+    isFailure,
+    raw: data,
+  };
+}
+
+export function normalizeTransactionPage(data: unknown, requestedPage: number, requestedSize: number): TransactionPage {
+  if (!isRecord(data) || !Array.isArray(data.transactions)) {
+    throw new Error('The transaction service returned an invalid transaction list.');
+  }
+  const items = data.transactions.map((transaction, index) => {
+    if (!isRecord(transaction)) {
+      throw new Error(`The transaction service returned an invalid transaction at position ${index + 1}.`);
+    }
+    const tid = str(transaction.tid);
+    if (!tid) {
+      throw new Error(`The transaction service omitted the transaction ID at position ${index + 1}.`);
+    }
+    return normalizeTransaction(transaction, tid);
+  });
+  const totalElements = num(data.totalElements);
+  const totalPages = num(data.totalPages);
+  const page = num(data.currentPage) ?? requestedPage;
+  const size = num(data.pageSize) ?? requestedSize;
+  return {
+    items,
+    page,
+    size,
+    totalElements,
+    totalPages,
+    hasNext: typeof data.hasNext === 'boolean' ? data.hasNext : totalPages !== null ? page + 1 < totalPages : items.length === size,
+    hasPrevious: typeof data.hasPrevious === 'boolean' ? data.hasPrevious : page > 0,
+  };
 }
 
 export function normalizeHealth(data: unknown): ServiceHealth {

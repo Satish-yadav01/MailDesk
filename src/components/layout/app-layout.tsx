@@ -24,7 +24,7 @@ function NavList({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 export function AppLayout() {
-  const { user, logout } = useAuth();
+  const { user, userId, logout } = useAuth();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
   const initials = (user?.name ?? '?').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
@@ -66,6 +66,7 @@ export function AppLayout() {
                 <div className="px-3 py-2">
                   <p className="truncate text-sm font-semibold text-slate-900">{user?.name}</p>
                   <p className="truncate text-xs text-slate-500">{user?.email}</p>
+                  {userId && <p className="mt-1 text-xs text-slate-500">User ID: <span className="font-medium text-slate-700">{userId}</span></p>}
                 </div>
                 <Menu.Separator className="my-1 h-px bg-slate-100" />
                 <Menu.Item onSelect={() => void doLogout()} className="flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 outline-none data-[highlighted]:bg-slate-100">

@@ -1,11 +1,22 @@
 export interface AuthUser { name: string; email: string }
-export interface AuthSession { user: AuthUser; token: string; tokenType: string }
+export type TransactionOperation = 'single-email' | 'multiple-emails' | 'excel-import';
+export interface AuthSession {
+  user: AuthUser;
+  token: string;
+  tokenType: string;
+  userId?: string;
+  transactionOperations?: Record<string, TransactionOperation>;
+}
 
 const SESSION_KEY = 'maildesk.auth.session';
 export const AUTH_SESSION_EXPIRED_EVENT = 'maildesk:session-expired';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTransactionOperation(value: unknown): value is TransactionOperation {
+  return value === 'single-email' || value === 'multiple-emails' || value === 'excel-import';
 }
 
 export function getAuthSession(): AuthSession | null {
@@ -19,10 +30,19 @@ export function getAuthSession(): AuthSession | null {
       isRecord(value.user) && typeof value.user.email === 'string' &&
       typeof value.user.name === 'string'
     ) {
+      const transactionOperations = isRecord(value.transactionOperations)
+        ? Object.fromEntries(
+          Object.entries(value.transactionOperations)
+            .filter((entry): entry is [string, TransactionOperation] => isTransactionOperation(entry[1]))
+            .slice(-200),
+        )
+        : undefined;
       return {
         token: value.token,
         tokenType: value.tokenType,
         user: { email: value.user.email, name: value.user.name },
+        ...(typeof value.userId === 'string' && value.userId ? { userId: value.userId } : {}),
+        ...(transactionOperations && Object.keys(transactionOperations).length ? { transactionOperations } : {}),
       };
     }
     localStorage.removeItem(SESSION_KEY);
@@ -35,6 +55,18 @@ export function getAuthSession(): AuthSession | null {
 
 export function saveAuthSession(session: AuthSession): void {
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+export function saveTransactionOperation(tid: string, operation: TransactionOperation): void {
+  const session = getAuthSession();
+  if (!session) return;
+  const transactionOperations = { ...session.transactionOperations, [tid]: operation };
+  const recentOperations = Object.fromEntries(Object.entries(transactionOperations).slice(-200));
+  saveAuthSession({ ...session, transactionOperations: recentOperations });
+}
+
+export function getTransactionOperation(tid: string): TransactionOperation | null {
+  return getAuthSession()?.transactionOperations?.[tid] ?? null;
 }
 
 export function clearAuthSession(): void {
