@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert } from '@/components/ui/misc';
+import { toApiError } from '@/lib/api-errors';
 import { AuthLayout } from './auth-layout';
 import { useAuth } from './auth-context';
 
@@ -28,8 +29,11 @@ export function AuthCallbackPage() {
       try {
         await completeOAuth(token, tokenType);
         navigate('/app', { replace: true });
-      } catch {
-        setError('Could not complete Google sign-in. Please try again.');
+      } catch (error) {
+        const apiError = toApiError(error);
+        setError(apiError.isNetwork
+          ? 'Could not reach the account lookup service. Check its URL and CORS settings for this deployment.'
+          : apiError.message);
       }
     };
     void finishSignIn();

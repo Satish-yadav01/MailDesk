@@ -103,4 +103,11 @@ describe('API authentication', () => {
     expect(session).toContain('Bearer');
     expect(session).toContain('ada@example.com');
   });
+  it('shows the account lookup error when OAuth session setup fails', async () => {
+    vi.spyOn(userLookupApiClient, 'post').mockRejectedValue(new Error('Account lookup is not configured for this deployment.'));
+    window.history.replaceState({}, '', '/auth/callback#token=header.eyJlbWFpbCI6ImFkYUBleGFtcGxlLmNvbSJ9.signature');
+    renderWithProviders(tree, { route: '/auth/callback' });
+
+    expect(await screen.findByText('Account lookup is not configured for this deployment.')).toBeInTheDocument();
+  });
 });
