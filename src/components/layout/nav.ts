@@ -7,7 +7,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/app/emails/new', label: 'Create Single Email', icon: Plus },
   { to: '/app/emails/bulk', label: 'Create Multiple Emails', icon: Rows3 },
   { to: '/app/import', label: 'Upload Excel File', icon: FileSpreadsheet },
-  { to: '/app/transactions', label: 'Transaction Status', icon: Search },
+  { to: '/app/transactions', label: 'Transaction History', icon: Search },
   { to: '/app/mail-sender', label: 'Mail Sender', icon: Send },
 ];
 export { Mail };

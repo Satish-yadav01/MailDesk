@@ -45,7 +45,7 @@ export function DashboardPage() {
           </div></CardContent></Card>
         <Link to="/app/transactions" className="block rounded-2xl"><Card className="h-full transition hover:border-brand-300"><CardContent className="flex items-center gap-4">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-violet-50 text-violet-600"><Search className="h-5 w-5" aria-hidden /></span>
-          <div><p className="text-xs text-slate-500">Track a submission</p><p className="text-sm font-medium text-slate-900">Check transaction status</p></div>
+          <div><p className="text-xs text-slate-500">Track a submission</p><p className="text-sm font-medium text-slate-900">View transaction history</p></div>
         </CardContent></Card></Link>
       </section>
 

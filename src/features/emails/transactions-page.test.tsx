@@ -19,6 +19,60 @@ beforeEach(() => {
 });
 
 describe('TransactionsPage', () => {
+  it('searches and filters transactions loaded on the current page', async () => {
+    vi.spyOn(emailService, 'listTransactions').mockResolvedValue({
+      items: [
+        {
+          tid: '149',
+          userId: '1',
+          url: '/api/emails/add',
+          status: 'SUCCESS',
+          statusCode: 200,
+          message: 'Processing completed successfully',
+          isTerminal: true,
+          isFailure: false,
+          raw: {},
+        },
+        {
+          tid: '148',
+          userId: '1',
+          url: '/api/emails/import-excel',
+          status: 'FAILED',
+          statusCode: 500,
+          message: 'Import failed',
+          isTerminal: true,
+          isFailure: true,
+          raw: {},
+        },
+      ],
+      page: 0,
+      size: 5,
+      totalElements: 2,
+      totalPages: 1,
+      hasNext: false,
+      hasPrevious: false,
+    });
+
+    renderWithProviders(<TransactionsPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Transaction History' })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /149/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /148/ })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Filter by Status' }));
+    await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Status filter' }), 'SUCCESS');
+    expect(screen.getByRole('row', { name: /149/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /148/ })).not.toBeInTheDocument();
+
+    await userEvent.type(screen.getByRole('textbox', { name: 'Search transactions on this page' }), '149');
+    expect(screen.getByRole('row', { name: /149/ })).toBeInTheDocument();
+    expect(screen.queryByRole('row', { name: /148/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Clear all filters' }));
+    expect(screen.getByRole('row', { name: /149/ })).toBeInTheDocument();
+    expect(screen.getByRole('row', { name: /148/ })).toBeInTheDocument();
+  });
+
   it('uses the stored user ID to list transactions and paginate without looking it up again', async () => {
     const lookup = vi.spyOn(emailService, 'getUserIdByEmail');
     const list = vi.spyOn(emailService, 'listTransactions')
